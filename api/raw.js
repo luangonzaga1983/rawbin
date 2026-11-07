@@ -38,13 +38,23 @@ module.exports = async (req, res) => {
       return res.status(404).send('não encontrado');
     }
 
-    // conteúdo nunca muda -> cache longo na Vercel (poupa o Discord)
-    res.setHeader('Cache-Control', 'public, s-maxage=31536000, max-age=3600, immutable');
+    const wantsHtml =
+      req.query.mode !== 'plain' && String(req.headers.accept || '').includes('text/html');
 
-    if (req.query.mode === 'plain') {
+    if (!wantsHtml) {
+      // texto puro (igual raw do GitHub) - conteúdo nunca muda, cache longo
+      res.setHeader(
+        'Cache-Control',
+        req.query.mode === 'plain'
+          ? 'public, s-maxage=31536000, max-age=300, immutable' // /raw/ID: cache longo
+          : 'private, no-store' // /r/ID: varia por navegador/programa, não cachear
+      );
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       return res.status(200).send(text);
     }
+    // navegador: tela preta (sem cache pra não misturar com a versão texto)
+    res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(200).send(`<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
