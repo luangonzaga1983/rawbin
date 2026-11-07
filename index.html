@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raw Creator</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#000;color:#eee;font-family:system-ui,sans-serif;display:flex;justify-content:center;padding:24px}
+  main{width:100%;max-width:760px}
+  h1{font-size:20px;margin:0 0 16px}
+  textarea,input{width:100%;background:#0d0d0d;color:#fff;border:1px solid #333;border-radius:8px;padding:12px;font:14px ui-monospace,Consolas,monospace}
+  textarea{height:50vh;resize:vertical}
+  input{margin-top:10px}
+  button{margin-top:10px;background:#fff;color:#000;border:0;border-radius:8px;padding:12px 18px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5}
+  .res{margin-top:16px;display:none}
+  .res a{color:#7dd3fc;word-break:break-all}
+  .err{color:#f87171;margin-top:10px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Criar Raw</h1>
+  <textarea id="c" placeholder="Escreva o que quiser..."></textarea>
+  <input id="p" type="password" placeholder="Senha (se configurada)">
+  <button id="b">Criar link</button>
+  <div class="err" id="e"></div>
+  <div class="res" id="r">
+    <p>Tela preta: <a id="l1" target="_blank"></a></p>
+    <p>Texto puro: <a id="l2" target="_blank"></a></p>
+  </div>
+</main>
+<script>
+const $ = (i) => document.getElementById(i);
+$('b').onclick = async () => {
+  $('e').textContent = ''; $('r').style.display = 'none';
+  $('b').disabled = true; $('b').textContent = 'Salvando...';
+  try {
+    const r = await fetch('/api/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: $('c').value, password: $('p').value }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'erro');
+    const a = location.origin + '/r/' + d.id, b = location.origin + '/raw/' + d.id;
+    $('l1').href = $('l1').textContent = a;
+    $('l2').href = $('l2').textContent = b;
+    $('r').style.display = 'block';
+  } catch (e) { $('e').textContent = e.message; }
+  $('b').disabled = false; $('b').textContent = 'Criar link';
+};
+</script>
+</body>
+</html>
