@@ -2,13 +2,9 @@ const API = 'https://discord.com/api/v10';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function discord(path, opts = {}, tries = 0) {
-  const r = await fetch(API + path, {
-    ...opts,
-    headers: {
-      Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  const headers = { Authorization: `Bot ${process.env.DISCORD_TOKEN}` };
+  if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const r = await fetch(API + path, { ...opts, headers });
   if (r.status === 429 && tries < 8) {
     const d = await r.json().catch(() => ({}));
     await sleep((d.retry_after || 1) * 1000 + 100);

@@ -11,25 +11,32 @@ module.exports = async (req, res) => {
     if (!/^\d{15,25}$/.test(id)) return res.status(404).send('não encontrado');
 
     const idx = await discord(`/channels/${channel()}/messages/${id}`);
-    if (!idx.content.startsWith('RAW-INDEX ')) return res.status(404).send('não encontrado');
-    const ids = JSON.parse(idx.content.slice(10)).c;
+    let text;
 
-    // busca em lote os pedaços (1 request na maioria dos casos)
-    const map = {};
-    const min = ids.reduce((a, b) => (BigInt(a) < BigInt(b) ? a : b));
-    const bulk = await discord(
-      `/channels/${channel()}/messages?after=${BigInt(min) - 1n}&limit=100`
-    );
-    for (const m of bulk) map[m.id] = m.content;
-    // o que faltou (mensagens de outros raws no meio) busca individual
-    for (const cid of ids) {
-      if (map[cid] === undefined) {
-        const m = await discord(`/channels/${channel()}/messages/${cid}`);
-        map[cid] = m.content;
+    if (idx.content === 'RAW-FILE' && idx.attachments && idx.attachments.length) {
+      // formato novo: arquivo anexado (a mensagem devolve a URL assinada atual)
+      const f = await fetch(idx.attachments[0].url);
+      if (!f.ok) throw new Error('falha ao baixar anexo');
+      text = await f.text();
+    } else if (idx.content.startsWith('RAW-INDEX ')) {
+      // formato antigo: vários pedaços em mensagens
+      const ids = JSON.parse(idx.content.slice(10)).c;
+      const map = {};
+      const min = ids.reduce((a, b) => (BigInt(a) < BigInt(b) ? a : b));
+      const bulk = await discord(
+        `/channels/${channel()}/messages?after=${BigInt(min) - 1n}&limit=100`
+      );
+      for (const m of bulk) map[m.id] = m.content;
+      for (const cid of ids) {
+        if (map[cid] === undefined) {
+          const m = await discord(`/channels/${channel()}/messages/${cid}`);
+          map[cid] = m.content;
+        }
       }
+      text = ids.map((cid) => unwrap(map[cid])).join('');
+    } else {
+      return res.status(404).send('não encontrado');
     }
-
-    const text = ids.map((cid) => unwrap(map[cid])).join('');
 
     // conteúdo nunca muda -> cache longo na Vercel (poupa o Discord)
     res.setHeader('Cache-Control', 'public, s-maxage=31536000, max-age=3600, immutable');

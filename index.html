@@ -35,6 +35,7 @@
 const $ = (i) => document.getElementById(i);
 $('b').onclick = async () => {
   $('e').textContent = ''; $('r').style.display = 'none';
+  if (new Blob([$('c').value]).size > 4*1024*1024) { $('e').textContent = 'grande demais (máx 4MB)'; return; }
   $('b').disabled = true; $('b').textContent = 'Salvando...';
   try {
     const r = await fetch('/api/create', {
